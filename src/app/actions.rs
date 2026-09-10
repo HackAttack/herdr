@@ -316,6 +316,7 @@ impl AppState {
             .and_then(|ws| ws.tabs.get_mut(tab_idx))
         {
             tab.layout.focus_pane(pane_id);
+            tab.zoomed = false;
             self.previous_pane_focus = previous;
             self.mark_session_dirty();
             return true;
@@ -889,11 +890,13 @@ impl AppState {
             .workspaces
             .get(ws_idx)?
             .find_tab_index_for_pane(pane_id)?;
+        let was_zoomed = self.workspaces.get(ws_idx)?.tabs.get(tab_idx)?.zoomed;
         let focus_changed = self.focus_pane_in_workspace(ws_idx, pane_id);
         let tab = self
             .workspaces
             .get_mut(ws_idx)
             .and_then(|ws| ws.tabs.get_mut(tab_idx))?;
+        tab.zoomed = was_zoomed;
         if tab.layout.pane_count() <= 1 {
             return Some(PaneZoomOutcome {
                 changed: false,
@@ -3845,7 +3848,7 @@ mod tests {
     }
 
     #[test]
-    fn navigate_pane_changes_focus_while_zoomed() {
+    fn navigate_pane_unzooms_when_focus_changes() {
         let mut state = app_with_workspaces(&["test"]);
         let root = state.workspaces[0].tabs[0].root_pane;
         let right = state.workspaces[0].test_split(Direction::Horizontal);
@@ -3867,11 +3870,9 @@ mod tests {
             ratatui::layout::Rect::new(0, 0, 100, 20),
         );
 
-        assert!(state.workspaces[0].zoomed);
+        assert!(!state.workspaces[0].zoomed);
         assert_eq!(state.workspaces[0].focused_pane_id(), Some(right));
-        assert_eq!(state.view.pane_infos.len(), 1);
-        assert_eq!(state.view.pane_infos[0].id, right);
-        assert!(state.view.pane_infos[0].inner_rect.x > state.view.pane_infos[0].rect.x);
+        assert_eq!(state.view.pane_infos.len(), 2);
     }
 
     #[test]
